@@ -1,14 +1,20 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect
-from django.shortcuts import render
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
+from django.contrib.auth.decorators import login_required
+from json import loads
+from django.views.decorators.csrf import csrf_exempt
 
-from .models import User
+from .models import User, Post
+from .util import get_post
 
-
+@login_required
 def index(request):
-    return render(request, "network/index.html")
+    return render(request, "network/index.html", {
+        'posts': Post.objects.all()
+    })
 
 
 def login_view(request):
@@ -61,3 +67,48 @@ def register(request):
         return HttpResponseRedirect(reverse("index"))
     else:
         return render(request, "network/register.html")
+
+@login_required
+def profile(request, profile_id):
+    user = get_object_or_404(User, pk=profile_id)
+    return render(request, 'network/profile.html', {
+        'base_user': user 
+    })
+
+@login_required
+def post(request):
+    if request.method == 'POST':
+        print(request.POST['content'])
+        Post.objects.create(writer=request.user, content=request.POST['content'])
+    return HttpResponseRedirect(reverse('profile', args=[request.user.id]))
+
+def like_post(request, post_id):
+    print(request)
+    post = get_post(post_id)
+    if post is None:
+        return JsonResponse({'error': "Post doesn't exist"}, status=404)
+    
+    user = request.user
+    print(user)
+
+
+@login_required
+@csrf_exempt
+def content(request, post_id):
+
+    # get the post from database
+    print(request)
+    post = get_post(post_id)
+    if post is None:
+        return JsonResponse({'error': "Post doesn't exist"}, status=404)
+    
+    if request.method == 'GET':
+        return JsonResponse({'content': post.content})
+    
+    else:
+        data = loads(request.body)
+        print(data['content'])
+        post.content = data['content']
+        post.save()
+        return HttpResponse(status=204)
+        
