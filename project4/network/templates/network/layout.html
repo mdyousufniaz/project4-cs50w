@@ -2,94 +2,197 @@
 
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <title>{% block title %}Social Network{% endblock %}</title>
-        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-        <link href="{% static 'network/styles.css' %}" rel="stylesheet">
-        {% block script %}
-            <script src="{% static 'network/layout.js' %}"></script>
-        {% endblock %}
-    </head>
-    <body>
 
-        <nav class="navbar navbar-expand-lg navbar-light bg-light">
-            <a class="navbar-brand all_post" href="{% url 'index' %}">Network</a>
-          
-            <div>
-              <ul class="navbar-nav mr-auto">
-                {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'profile' user.id %}" ><strong>{{ user.username }}</strong></a>
-                    </li>
-                {% endif %}
-                <li class="nav-item">
-                  <a class="nav-link" href="{% url 'index' %}">All Posts</a>
-                </li>
-                {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Following</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">Log Out</a>
-                    </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">Log In</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'register' %}">Register</a>
-                    </li>
-                {% endif %}
-              </ul>
-            </div>
-          </nav>
-        
-        <div class="body">
-            <div class="container">
-                <h1>
-                    {% block heading %}
-                        All Posts
-                    {% endblock %}
-                </h1>
-                {% block dashboard %}
-                {% endblock %}
+<head>
+	<title>{% block title %}Social Network{% endblock %}</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
+		integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
 
-                {% for post in posts %}
-                    <div class="container border">
-                        <div class="row">
-                            <div class="col">
-                                <h4><a href="{% url 'profile' post.writer.id %}">{{post.writer.username}}</a></h4>
-                            </div>
-                            {% if user == post.writer %}
-                            <div class="col d-flex justify-content-end align-items-center">
-                                <a href="#" id="edit" data-post_id="{{ post.id }}">Edit</a>
-                            </div>
-                            {% endif %}
-                        </div>
-                        <p class="text-muted">{{ post.creation_time }}</p>
-                        <div class="lead">
-                            <p>{{ post.content }}</p>
-                        </div>
-                        <div>
-                            <i class="h4 bi 
-                                {% if user in post.liked_users %}
-                                    bi-star-fill
-                                {% else %}
-                                    bi-star
-                                {% endif %}
-                            " id="like" target="like"></i>
-                            {% if post.liked_users.count %}
-                                <span>{{ post.liked_users.count }}</span>
-                            {% endif %}
-                        </div>
-                        
-                    </div>
-                {% endfor %}
-                
-                {% block body %}
-                {% endblock %}
-            </div>
-        </div>
-    </body>
+	<!-- React -->
+	<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+	<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+
+	<!-- Babel -->
+	<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+	<link href="{% static 'network/styles.css' %}" rel="stylesheet">
+	{% block script %}
+	{% endblock %}
+</head>
+
+<body>
+
+	<nav class="navbar navbar-expand-lg navbar-light bg-light">
+		<a class="navbar-brand all_post" href="{% url 'index' %}">Network</a>
+
+		<div>
+			<ul class="navbar-nav mr-auto">
+				{% if user.is_authenticated %}
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'profile' user.id %}"><strong>{{ user.username }}</strong></a>
+				</li>
+				{% endif %}
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'index' %}">All Posts</a>
+				</li>
+				{% if user.is_authenticated %}
+				<li class="nav-item">
+					<a class="nav-link" href="#">Following</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'logout' %}">Log Out</a>
+				</li>
+				{% else %}
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'login' %}">Log In</a>
+				</li>
+				<li class="nav-item">
+					<a class="nav-link" href="{% url 'register' %}">Register</a>
+				</li>
+				{% endif %}
+			</ul>
+		</div>
+	</nav>
+
+	<div class="body">
+		<div class="container">
+			<h1>
+				{% block heading %}
+				All Posts
+				{% endblock %}
+			</h1>
+			{% block dashboard %}
+			{% endblock %}
+
+			<div class="container-fluid" id="posts"></div>
+
+			<script type="text/babel">
+				function Post(props) {
+
+					const post = props.post;
+		
+					const userLiked = post.liked_users.some(user => user.id == "{{ user.id }}");
+					console.log(userLiked);
+		
+					const initialState = {
+						content: post.content,
+						likeIconClass: userLiked ? "-fill" : '',
+						likeIconColor: userLiked ? "yellow" : 'black',
+						likeCount: post.liked_users.length
+					};
+		
+					const userIsPostWriter = "{{ user.id}}" == post.writer.id;
+					console.log(userIsPostWriter);
+		
+					if (userIsPostWriter) {
+						initialState.modifyBtnText = 'Edit';
+					}
+		
+					async function handleModifyBtn() {
+						if( state.modifyBtnText === 'Close'){
+							const response = await fetch(`/content/${post.id}`);
+							const data = await response.json();
+
+							setState({
+								...state,
+								content: data.content
+							});
+
+						}
+
+						setState(prevState => ({
+							...prevState,
+							modifyBtnText: prevState.modifyBtnText === 'Edit' ? 'Close' : 'Edit' 
+						}));
+					}
+
+					async function handleLikeBtn() {
+						await fetch(`/like_post/${post.id}`, {
+							method: 'PUT'
+						});
+
+						setState(prevState => ({
+							...prevState,
+							likeIconClass: prevState.likeIconClass === '' ? '-fill' : '',
+							likeIconColor: prevState.likeIconColor === 'black' ? 'yellow' : 'black',
+							likeCount:  prevState.likeIconClass === '' ? prevState.likeCount + 1 : prevState.likeCount - 1
+						}));
+					}
+
+					async function handleSaveBtn() {
+						if (state.content) {
+							await fetch(`/content/${post.id}`, {
+								method: 'PUT',
+								body: JSON.stringify({
+									'content': state.content
+								})
+							});
+
+							setState({
+								...state,
+								modifyBtnText: 'Edit'
+							});
+						} else {
+							alert("Post Content can not be empty!");
+						}
+					}
+
+					const [state, setState] = React.useState(initialState);
+					return (
+						<div className="border border-secondary rounded my-3 p-3">
+						<div className="row">
+							<div className="col">
+								<h4><a href={`profile/${post.writer.id}`}>{ post.writer.username }</a></h4>
+							</div>
+							{userIsPostWriter &&
+								<div className="col d-flex justify-content-end align-items-center">
+									{state.modifyBtnText === 'Edit' ?
+										<a href="#" onClick={ handleModifyBtn }>{ state.modifyBtnText }</a> :
+										<button className="btn btn-sm btn-danger" onClick={ handleModifyBtn }>{ state.modifyBtnText }</button>
+									}
+							</div>
+							}
+							</div>
+							<p className="text-muted"><i>{ post.creation_time }</i></p> 
+							<div className="lead">
+							{"{% verbatim %}"}
+							{
+								state.modifyBtnText === 'Close' ?
+								<>
+									<textarea className="form-control mr-5" name="content" rows="4" maxLength="1000" required id="content"  style={{ fontSize: '1.25rem', fontWeight: '300' }} value={state.content} onChange={(e) => {setState({...state, content: e.target.value})}}></textarea>
+									<button className="btn btn-success my-3" onClick={ handleSaveBtn }>Save</button>
+								</>:
+								<p>{state.content}</p>
+							}
+							</div>
+							
+							{ state.modifyBtnText !== 'Close' &&
+								<div>
+									<i className={`h4 bi bi-star${state.likeIconClass}`} style={{color: state.likeIconColor}} onClick={ handleLikeBtn }></i>
+									{ state.likeCount > 0 && <span> { state.likeCount }</span>}
+								</div>
+							}
+							{"{% endverbatim %}"}
+						</div>
+					);
+					
+				}
+				
+				const posts = JSON.parse('{{ posts|safe }}');
+				const postsContainer = document.getElementById('posts');
+
+				posts.map(post => {
+						const div = document.createElement('div');
+						postsContainer.appendChild(div);
+						ReactDOM.render(< Post post={post} />, div);
+					});
+			</script>
+
+
+			{% block body %}
+			{% endblock %}
+		</div>
+	</div>
+</body>
+
 </html>

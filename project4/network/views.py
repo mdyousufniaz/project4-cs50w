@@ -6,14 +6,16 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from json import loads
 from django.views.decorators.csrf import csrf_exempt
+from django.core.serializers import serialize
 
 from .models import User, Post
 from .util import get_post
+from json import dumps
 
 @login_required
 def index(request):
     return render(request, "network/index.html", {
-        'posts': Post.objects.all()
+        'posts': dumps([post.serialize() for post in Post.objects.all()])
     })
 
 
@@ -82,6 +84,8 @@ def post(request):
         Post.objects.create(writer=request.user, content=request.POST['content'])
     return HttpResponseRedirect(reverse('profile', args=[request.user.id]))
 
+@login_required
+@csrf_exempt
 def like_post(request, post_id):
     print(request)
     post = get_post(post_id)
@@ -90,6 +94,13 @@ def like_post(request, post_id):
     
     user = request.user
     print(user)
+
+    if(user in post.liked_users.all()):
+        post.liked_users.remove(user)
+    else:
+        post.liked_users.add(user)
+    
+    return HttpResponse(status=204)
 
 
 @login_required
@@ -105,10 +116,38 @@ def content(request, post_id):
     if request.method == 'GET':
         return JsonResponse({'content': post.content})
     
-    else:
-        data = loads(request.body)
-        print(data['content'])
-        post.content = data['content']
-        post.save()
-        return HttpResponse(status=204)
+    data = loads(request.body)
+    print(data['content'])
+    post.content = data['content']
+    post.save()
+    return HttpResponse(status=204)
         
+
+
+@login_required
+@csrf_exempt
+def follow(request, user_id):
+    try:
+        profile_user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'error': "User doesn't exist"}, status=404)
+    
+    current_user = request.user
+
+    if current_user in profile_user.followers.all():
+        profile_user.followers.remove(current_user)
+    else:
+        profile_user.followers.add(current_user)
+
+    # to see if the user has correctly followed or unfollowed...
+    print(profile_user.followers.all(), profile_user.followings.all())
+    return HttpResponse(status=204)
+
+def get_follower_count(request, user_id):
+    try:
+        profile_user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'error': "User doesn't exist"}, status=404)
+    
+    # if successful...
+    return JsonResponse({'follower_count': profile_user.followers.count()})
